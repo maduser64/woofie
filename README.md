@@ -13,7 +13,6 @@ Installation
 The easiest way is to just:
 
 `go get github.com/wjblack/woofie/...`
-`go install github.com/wjblack/woofie/...`
 
 For sure you'll need the portaudio dev files (e.g. apt-get install
 portaudio19-dev or similar).
@@ -52,7 +51,7 @@ overlap or have holes no problem, so this is legit:
 ...which would be:
 
 * Monday, Tuesday, Wednesday, Friday 9-11:30 and 12:30-5 and
-* Thursday 9-6
+* Thursday 9-6 (because it has the rules above PLUS 10-6 extra)
 
 Note all times are 24-hour time.
 
