@@ -70,9 +70,12 @@ func initlog() {
 			logger, err = syslog.NewLogger(priority, log.LstdFlags)
 			if err != nil { panic("Couldn't open syslog!") }
 		default:
-			flags := os.O_WRONLY | os.O_APPEND
+			flags := os.O_WRONLY | os.O_APPEND | os.O_CREATE
 			logfile, err := os.OpenFile(*logDest, flags, 0644)
-			if err != nil { panic("Couldn't open logfile!") }
+			if err != nil {
+				panic(fmt.Sprintf("Couldn't open logfile: %s",
+					err.Error()))
+			}
 			prefix := fmt.Sprintf("%s: ", os.Args[0])
 			logger = log.New(logfile, prefix, log.LstdFlags)
 	}
