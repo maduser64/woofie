@@ -16,7 +16,6 @@ import (
 	"log"
 	"log/syslog"
 	"os"
-	"net/http"
 	"strings"
 	"syscall"
 )
@@ -35,10 +34,10 @@ var score = goopt.Int([]string{"--score"}, 150,
 	"max points before we shut up for a while")
 var factor = goopt.Int([]string{"--factor"}, 5,
 	"% chance that we might ignore the log")
-var httpPort = goopt.Int([]string{"--port"}, 40080,
+var port = goopt.Int([]string{"--port"}, 40080,
 	"port to serve on")
-var httpPath = goopt.String([]string{"--path"}, "/",
-	"http path prefix")
+var path = goopt.String([]string{"--path"}, "/",
+	"path prefix (HTTP only)")
 var logDest = goopt.String([]string{"--log"}, "stderr",
 	"log to stderr/syslog/filename")
 var alsaHack = goopt.Flag([]string{"--alsahack"}, nil, "silence ALSA warnings",
@@ -84,24 +83,6 @@ func initlog() {
 	log.SetOutput(ioutil.Discard)
 }
 
-// WoofHandler receives a request from the client and calls the Woofer to
-// turn woofing on or off.
-func WoofHandler(w http.ResponseWriter, req *http.Request) {
-	cmd := strings.TrimPrefix(req.URL.Path, *httpPath)
-	switch cmd {
-		case "on":
-			woofer.WoofOn()
-			fmt.Fprintf(w, "OK")
-			logger.Println("Received on request")
-		case "off":
-			woofer.WoofOff()
-			fmt.Fprintf(w, "OK")
-			logger.Println("Received off request")
-		default:
-			fmt.Fprintf(w, "ERROR: Unrecognized command '%s'", cmd)
-	}
-}
-
 // main is the main routine, parsing the command line and firing up the
 // webserver.
 func main() {
@@ -113,11 +94,11 @@ func main() {
 	goopt.Summary = "triggered audio player"
 	goopt.Parse(nil)
 	initlog()
-	if !strings.HasSuffix(*httpPath, "/") {
-		*httpPath = fmt.Sprintf("%s/", *httpPath)
+	if !strings.HasSuffix(*path, "/") {
+		*path = fmt.Sprintf("%s/", *path)
 	}
 	logger.Printf("Serving woofs from %s on port %d with path %s\n",
-		*woofDir, *httpPort, *httpPath)
+		*woofDir, *port, *path)
 	if *alsaHack {
 		os.Stderr.Close()
 		logger.Println("ALSA warnings on stderr disabled")
@@ -133,6 +114,8 @@ func main() {
 		*resolution, *horizon, *score, *factor)
 	woofer.Player()
 	logger.Println("Woofie ready for operation...")
-	http.HandleFunc(*httpPath, WoofHandler)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *httpPort), nil))
+	var trigger woofie.WoofTrigger
+	trigger = woofie.NewHttpWoofTrigger(*path, *port)
+	err = trigger.MainLoop(logger, woofer)
+	if err != nil { panic(err) }
 }
