@@ -1,4 +1,4 @@
-// HTTP-triggered randomized sound player, simulating how a dog would bark at
+// Network-triggered randomized sound player, simulating how a dog would bark at
 // a door.
 
 // This file implements the FLAC directory scanner and sound player.

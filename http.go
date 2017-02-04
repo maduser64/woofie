@@ -12,6 +12,7 @@ import (
 	"strings"
 )
 
+// HttpWoofTrigger holds the basic path and port info for the trigger assembly.
 type HttpWoofTrigger struct {
 	path string
 	port int

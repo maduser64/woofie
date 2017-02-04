@@ -1,3 +1,5 @@
+// Test routines for the scheduler routines.
+
 package woofie
 
 import (
@@ -6,6 +8,8 @@ import (
 	"time"
 )
 
+// testplan holds the set of strings that specify schedules and what the
+// expected output.
 type testplan struct {
 	scheduleString string
 	expected string
@@ -13,6 +17,8 @@ type testplan struct {
 	badSchedule string
 }
 
+// TestSchedule runs through a bunch of sample schedules, verifying that
+// various positive and negative data points render as expected.
 func TestSchedule(t *testing.T) {
 	schedules := []testplan{
 		testplan{
@@ -43,12 +49,18 @@ func TestSchedule(t *testing.T) {
 			"Sun Jan 22 11:34:56 PST 2017",
 		},
 	}
+
+	// Run through all the schedules
 	for i:=0; i<len(schedules); i++ {
+
+		// Parse it out and make sure it parsed OK.
 		sched, err := NewSchedules(schedules[i].scheduleString)
 		if err != nil {
 			t.Error("Error parsing schedule ",
 				schedules[i].scheduleString, ":", err.Error())
 		}
+
+		// Compare the lines output vs expected.
 		oldlines := strings.Split(schedules[i].expected, "\n")
 		newlines := strings.Split(sched.Dump(), "\n")
 		for i:=0; i<len(oldlines); i++ {
@@ -62,6 +74,8 @@ func TestSchedule(t *testing.T) {
 		for i:=len(oldlines); i<len(newlines); i++ {
 			t.Error("Added ~~", newlines[i], "~~")
 		}
+
+		// Check the good and bad timespots and make sure they behave.
 		tg, err := time.Parse(time.UnixDate, schedules[i].goodSchedule)
 		if err != nil { t.Error(err) }
 		if !sched.InSchedules(tg) {

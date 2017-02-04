@@ -1,7 +1,8 @@
-// HTTP-triggered randomized sound player, simulating how a dog would bark at
+// Network-triggered randomized sound player, simulating how a dog would bark at
 // a door.
 
-// This file implements the web server and main program.
+// This file implements the main program, firing up the appropriate trigger
+// mechanism.
 
 // (C)2017 by BJ Black <bj@wjblack.com>, WTFPL licensed--see COPYING
 
@@ -90,6 +91,8 @@ func initlog() {
 // main is the main routine, parsing the command line and firing up the
 // webserver.
 func main() {
+
+	// Parse the command line.
 	goopt.Description = func() string {
 		return "Server to play audio files in a directory " +
 			"triggered by HTTP."
@@ -97,18 +100,24 @@ func main() {
 	goopt.Version = "1.0"
 	goopt.Summary = "triggered audio player"
 	goopt.Parse(nil)
+
+	// Fire up the logger
 	initlog()
 	if !strings.HasSuffix(*path, "/") {
 		*path = fmt.Sprintf("%s/", *path)
 	}
 	logger.Printf("Serving woofs from %s on port %d using trigger %s\n",
 		*woofDir, *port, *mode)
+
+	// Silence the libportaudio errors maybe
 	if *alsaHack {
 		os.Stderr.Close()
 		logger.Println("ALSA warnings on stderr disabled")
 	}
 	portaudio.Initialize()
 	defer portaudio.Terminate()
+
+	// Load up the soundfiles
 	sounds, err := woofie.NewSounds(*woofDir)
 	if err != nil { panic(err.Error()) }
 	if len(*sounds) == 0 { panic("No sounds in woofdir!") }
@@ -117,7 +126,10 @@ func main() {
 	woofer = woofie.NewWoofer(sounds, schedules, logger,
 		*resolution, *horizon, *score, *factor)
 	woofer.Player()
+
 	logger.Println("Woofie ready for operation...")
+
+	// Fire up whatever trigger plugin we're using
 	var trigger woofie.WoofTrigger
 	switch *mode {
 		case "http":
@@ -131,6 +143,8 @@ func main() {
 		default:
 			logger.Panic(fmt.Sprintf("Invalid mode %s", *mode))
 	}
+
+	// Run the trigger's event loop
 	err = trigger.MainLoop(logger, woofer)
 	if err != nil { panic(err) }
 }

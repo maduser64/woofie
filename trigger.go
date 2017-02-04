@@ -12,6 +12,8 @@ import (
 	"log"
 )
 
+// WoofTrigger is a generic interface for any triggerable method (HTTP, UDP,
+// etc.)
 type WoofTrigger interface {
 	MainLoop(logger *log.Logger, woofer *Woofer) error
 }

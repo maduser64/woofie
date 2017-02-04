@@ -1,6 +1,6 @@
 Woofie
 ======
-This is a webserver that plays sounds when triggered from an HTTP client. The
+This is a network server that plays sounds when triggered from a client. The
 intent is to integrate it into an IoT solution with a remote motion sensor to
 play dog barks to (hopefully) scare off crooks.
 
@@ -33,9 +33,18 @@ You could just start bin/woofie with no params, or:
 `bin/woofie --help`
 `bin/woofie --woofdir=/path/to/FLAC/dir/`
 
-...the latter of which will start the server on port 40080 with a default path.
+...the latter of which will start the HTTP server on port 40080 with a default
+path.
 
-The basics like TCP port, what the assumed path is (handy if e.g. you're behind
+There are (as of this writing) two different trigger mechanisms available:
+
+* Unicast HTTP.  This is the default and assumes that the client sends a GET
+  request of the form http://$ip/$path/on|off
+
+* Broadcast UDP.  This method allows the client to send a broadcast UDP packet
+  to the local network without needing to know the specific IP of the server.
+
+The basics like HTTP port, what the assumed path is (handy if e.g. you're behind
 a load balancer that passes paths through), and so on are in there and fairly
 straightforward.  The business logic, however, is a bit more complex and is
 explained below.
@@ -68,6 +77,15 @@ lines like:
 --alsahack will disable stderr for anything but logging (assuming that's where
 you're sending your logs).  It's a bit scorched-earth (and if you need to
 legit debug, you probably don't want it on), but...
+
+
+UDP Trigger Mechanism
+---------------------
+When using UDP, a preshared key (actually, just a text password) is used with
+a hash to form the 16-byte packet content.  The packet is basically just
+MD5(password + ":on") or MD5(password + ":off").  This doesn't prevent replay-
+type attacks (though, honestly, there's nigh zero security on this thing
+anyway).
 
 
 Business Logic

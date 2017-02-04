@@ -35,6 +35,8 @@ func NewUdpWoofTrigger(pw string, port int) (*UdpWoofTrigger, error) {
 	return &UdpWoofTrigger{ addr, onMD[:], offMD[:] }, nil
 }
 
+// ProcessBytes double-checks the packet data against the two possible
+// transaction types.
 func (wt UdpWoofTrigger) ProcessBytes(buf []byte, woofer *Woofer) error {
 	if len(buf) != 16 {
 		return errors.New(fmt.Sprintf("Invalid packet size %d",
@@ -58,6 +60,7 @@ func (wt UdpWoofTrigger) MainLoop(logger *log.Logger, woofer *Woofer) error {
 	conn, err := net.ListenUDP("udp", wt.addr)
 	if err != nil { return err }
 	buf := make([]byte, 8192)
+	// MainLoop runs forever.  Basically it won't exit except in a panic.
 	for {
 		nb, src, err := conn.ReadFromUDP(buf)
 		if err != nil {
