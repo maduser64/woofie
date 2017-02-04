@@ -55,6 +55,15 @@ overlap or have holes no problem, so this is legit:
 
 Note all times are 24-hour time.
 
+Finally, the ALSA hack.  If you find your stderr logs are getting spammed with
+lines like:
+
+`ALSA lib pcm_dmix.c:1041:(snd_pcm_dmix_open) unable to open slave`
+
+--alsahack will disable stderr for anything but logging (assuming that's where
+you're sending your logs).  It's a bit scorched-earth (and if you need to
+legit debug, you probably don't want it on), but...
+
 
 Business Logic
 --------------
