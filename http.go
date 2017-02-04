@@ -18,12 +18,12 @@ type HttpWoofTrigger struct {
 }
 
 // init sets up the HTTP server and gets ready to run the main loop.
-func NewHttpWoofTrigger(path string, port int) HttpWoofTrigger {
+func NewHttpWoofTrigger(path string, port int) (*HttpWoofTrigger, error) {
 	ret := HttpWoofTrigger{ path, port }
 	if !strings.HasSuffix(ret.path, "/") {
 		ret.path = fmt.Sprintf("%s/", ret.path)
 	}
-	return ret
+	return &ret, nil
 }
 
 // MainLoop starts up a listener to talk with the woofer thread and starts

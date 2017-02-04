@@ -38,8 +38,12 @@ var port = goopt.Int([]string{"--port"}, 40080,
 	"port to serve on")
 var path = goopt.String([]string{"--path"}, "/",
 	"path prefix (HTTP only)")
+var pass = goopt.String([]string{"--pass"}, "bow wow",
+	"preshared password (UDP only)")
 var logDest = goopt.String([]string{"--log"}, "stderr",
 	"log to stderr/syslog/filename")
+var mode = goopt.Alternatives([]string{"--mode"}, []string{"http", "udp"},
+	"which network trigger to use")
 var alsaHack = goopt.Flag([]string{"--alsahack"}, nil, "silence ALSA warnings",
 	"")
 
@@ -97,8 +101,8 @@ func main() {
 	if !strings.HasSuffix(*path, "/") {
 		*path = fmt.Sprintf("%s/", *path)
 	}
-	logger.Printf("Serving woofs from %s on port %d with path %s\n",
-		*woofDir, *port, *path)
+	logger.Printf("Serving woofs from %s on port %d using trigger %s\n",
+		*woofDir, *port, *mode)
 	if *alsaHack {
 		os.Stderr.Close()
 		logger.Println("ALSA warnings on stderr disabled")
@@ -115,7 +119,18 @@ func main() {
 	woofer.Player()
 	logger.Println("Woofie ready for operation...")
 	var trigger woofie.WoofTrigger
-	trigger = woofie.NewHttpWoofTrigger(*path, *port)
+	switch *mode {
+		case "http":
+			trig, err := woofie.NewHttpWoofTrigger(*path, *port)
+			if err != nil { logger.Panic(err) }
+			trigger = woofie.WoofTrigger(trig)
+		case "udp":
+			trig, err := woofie.NewUdpWoofTrigger(*pass, *port)
+			if err != nil { logger.Panic(err) }
+			trigger = woofie.WoofTrigger(trig)
+		default:
+			logger.Panic(fmt.Sprintf("Invalid mode %s", *mode))
+	}
 	err = trigger.MainLoop(logger, woofer)
 	if err != nil { panic(err) }
 }
