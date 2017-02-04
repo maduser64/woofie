@@ -8,6 +8,11 @@ It uses the GoFlaCook cookbook code to help play FLAC files and has a decently
 sophisticated bit of business logic to figure out when to play.
 
 
+Code Status
+-----------
+[![Build Status](https://travis-ci.org/wjblack/woofie.svg?branch=master)](https://travis-ci.org/wjblack/woofie)
+
+
 Installation
 ------------
 The easiest way is to just:
