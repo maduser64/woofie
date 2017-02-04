@@ -1,0 +1,25 @@
+The Lua script in here is intended to be run on an ESP8266 board (like
+https://github.com/wjblack/basicesp/tree/master) running NodeMCU with the
+following modules installed:
+
+* crypto
+* gpio
+* net
+* node
+* timer
+* wifi
+
+We assume there's a pushbutton (to enable ExpressIF's smartconfig) connected
+to a GPIO (GPIO0 is good for that) and a motion sensor hooked up to another
+GPIO.
+
+Everything in the script is edge-triggered (high->low) and executed using a
+number of callbacks and timeouts (kinda like a JavaScript nightmare, really
+:-/).
+
+I assume you're familiar with flashing NodeMCU and uploading files using
+e.g. nodemcu-uploader.  This file should probably be uploaded as init.lua
+(assuming you want it to start on boot).
+
+Development status
+I just wrote this thing.  No debugging has been done yet :-)
