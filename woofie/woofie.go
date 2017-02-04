@@ -8,8 +8,9 @@
 package main
 
 import (
-	"github.com/wjblack/woofie"
+	"github.com/gordonklaus/portaudio"
 	"github.com/droundy/goopt"
+	"github.com/wjblack/woofie"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -91,9 +92,11 @@ func WoofHandler(w http.ResponseWriter, req *http.Request) {
 		case "on":
 			woofer.WoofOn()
 			fmt.Fprintf(w, "OK")
+			logger.Println("Received on request")
 		case "off":
 			woofer.WoofOff()
 			fmt.Fprintf(w, "OK")
+			logger.Println("Received off request")
 		default:
 			fmt.Fprintf(w, "ERROR: Unrecognized command '%s'", cmd)
 	}
@@ -119,6 +122,8 @@ func main() {
 		os.Stderr.Close()
 		logger.Println("ALSA warnings on stderr disabled")
 	}
+	portaudio.Initialize()
+	defer portaudio.Terminate()
 	sounds, err := woofie.NewSounds(*woofDir)
 	if err != nil { panic(err.Error()) }
 	if len(*sounds) == 0 { panic("No sounds in woofdir!") }

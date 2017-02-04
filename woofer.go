@@ -121,9 +121,11 @@ func (w *Woofer) WoofOn() {
 		if (woofScore < w.Score) || (rand.Float32() < w.RandomFactor) {
 			w.WoofUntil = time.Now().Add(w.Resolution*time.Second)
 			w.WoofLog = append(w.WoofLog, time.Now())
+			logger.Printf("Authorizing bark at score=%d\n",
+				woofScore)
 		} else {
-			logger.Println("Too much barking; shutting up for " +
-				"a while")
+			logger.Printf("Too much barking; shutting up for " +
+				"a while (score=%d)\n", woofScore)
 		}
 	} else {
 		// No log yet, so we go no matter what.

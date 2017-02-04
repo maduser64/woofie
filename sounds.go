@@ -46,11 +46,20 @@ func (s *Sound) Play() error {
 
 	// Init pulseaudio
 	buffer := make([]int32, 1)
-	portaudio.Initialize()
-	defer portaudio.Terminate()
 	stream, err := portaudio.OpenDefaultStream(0,
 		int(s.metadata.NChannels), float64(s.metadata.SampleRate),
 		len(buffer), &(buffer))
+	if err != nil {
+		logger.Printf("Err: %s, restarting portaudio.\n", err.Error())
+		portaudio.Terminate()
+		time.Sleep(100*time.Millisecond)
+		portaudio.Initialize()
+		time.Sleep(100*time.Millisecond)
+		stream, err = portaudio.OpenDefaultStream(0,
+			int(s.metadata.NChannels),
+			float64(s.metadata.SampleRate),
+			len(buffer), &(buffer))
+	}
 	if err != nil { return err }
 	outputter := goflacook.NewOutputter(
 		func(st *flac.Stream, buf []int32) error {
@@ -66,6 +75,7 @@ func (s *Sound) Play() error {
 	err = outputter.Init(s.filepath)
 	if err != nil { return err }
 	outputter.MainLoop()
+	stream.Close()
 	return nil
 }
 
