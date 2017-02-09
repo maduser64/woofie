@@ -21,5 +21,37 @@ I assume you're familiar with flashing NodeMCU and uploading files using
 e.g. nodemcu-uploader.  This file should probably be uploaded as init.lua
 (assuming you want it to start on boot).
 
-Development status
-I just wrote this thing.  No debugging has been done yet :-)
+I've included a diff against the nodemcu sources to turn on all the bits
+needed (including the smartconfig stuff build-nodemcu.com doesn't turn on
+by default).  I've also included a compiled version of nodemcu that has this
+config and is built using the Docker image (see
+https://nodemcu.readthedocs.io/en/dev/en/build/#docker-image).
+
+A brief version of what you should do to flash all this stuff to an ESP device:
+
+0. Install esptool.py (pip install esptool) and nodemcu-uploader (pip ...)
+1. Boot into programming mode (holding the button, e.g.)
+2. esptool.py --port /dev/ttyUSB0 erase_flash
+3. Reboot into programming mode
+4. esptool.py --port /dev/ttyUSB0 write_flash -fm dio 0x3fc000 esp_init*.bin
+5. Reboot into programming mode
+6. esptool.py --port /dev/ttyUSB0 write_flash -fm dio 0x000000 *integer*.bin
+7. Pull the power and do nodemcu-uploader --port /dev/ttyUSB0 terminal
+8. Put the power back and boot normally.  Watch it format the flash.
+9. Ctrl-] and then something like:
+
+nodemcu-uploader --port /dev/ttyUSB0 --baud 9600 --start_baud 115200 \
+	upload woofie.lua
+
+(I needed to drop the speed for whatever reason.  You may not need to.)
+
+10. Repeat with init.lua
+11. The device will wait for a button press before attempting smartconfig.  You
+    can monitor the process via serial, yada yada.
+
+
+Noise and the PIR
+
+In order to reduce the amount of noise causing the PIR to read false positives,
+I completely disable the wifi to try to quiesce the PIR.  If there's motion,
+it should genuinely trigger appropriately.

@@ -40,76 +40,140 @@ CONFIG_SETUPTIME = 30000
 CONFIG_WIFITIME = 5000
 
 
-
 -- Precompute the on and off packets (we don't use the off packets yet)
 onpacket = crypto.hash("md5", CONFIG_PASSWORD .. ":on")
 offpacket = crypto.hash("md5", CONFIG_PASSWORD .. ":off")
 
--- Create the timer we'll use to tear down the wifi after sending the barks
-teardowntimer = tmr.create()
-setuptimer = tmr.create()
 
--- Turn the radio off on boot.
-wifi.nullmodesleep(false)
-wifi.setmode(wifi.NULLMODE, true)
+-- Set the RTC to a nonzero value for now
+rtctime.set(1000000000,0)
 
--- Set up an edge trigger to respond to the pushbutton (for smartconfig).
--- We set the GPIO trigger back up at the end for the next button press.
-function setconfig(ssid, password)
-	setuptimer:stop()
-	wifi.stopsmart()
-	config = {}
-	config.ssid = ssid
-	config.pwd = password
-	config.auto = true
-	config.save = true
-	wifi.sta.config(config)
-	gpio.trig(CONFIG_BTN, "down", fireconfig)
-end
+-- timer IDs we'll be using (OO timers are a titch wonky :-/ )
+TIMER_SETUP = 1
+TIMER_TEARDOWN = 2
 
--- Callback when we get a config pushbutton down.
-function fireconfig(level, when)
-	gpio.trig(CONFIG_BTN, "none")
-	wifi.setmode(wifi.STATION)
-	setuptimer:register(CONFIG_SETUPTIME, tmr.ALARM_SINGLE, setuptimeout)
-	setuptimer:start()
-	wifi.startsmart(0, setconfig)
-end
-
--- Callback when setup has been running without success for too long.
-function setuptimeout()
-	setuptimer:stop()
-	wifi.stopsmart()
-	gpio.trig(CONFIG_BTN, "down", fireconfig)
-end
-
--- Callback for the motion sensor.
-function firemotion(level, when)
-	wifi.setmode(wifi.STATION, false)
-	wifi.eventMonReg(wifi.STA_GOTIP, sendmotion)
+-- Tear down the Wifi after the packets are sent
+function teardown()
+	print("Woofs sent.  Tearing down WiFi...")
+	reset()
+	wifi.setmode(wifi.NULLMODE, true)
+	tmr.register(TIMER_TEARDOWN, CONFIG_WIFITIME, tmr.ALARM_SINGLE,
+		startup)
+	tmr.start(TIMER_TEARDOWN)
 end
 
 -- Callback for sending the motion sensor packet once we get an IP.
 function sendmotion(previous_state)
-	-- Figure out what the broadcast address is to send the packet.
+	ip = wifi.sta.getip()
 	bip = wifi.sta.getbroadcast()
+	print("Got IP " .. ip .. ", so sending woof request to " .. bip .. "...")
+	-- Figure out what the broadcast address is to send the packet.
 	sock = net.createUDPSocket()
 	sock:send(CONFIG_PORT, bip, onpacket)
 	sock:send(CONFIG_PORT, bip, onpacket)
-	if teardowntimer ~= nil then
-		teardowntimer:register(CONFIG_WIFITIME, tmr.ALARM_SINGLE, teardown)
-		teardowntimer:start()
+	if tmr.state(TIMER_TEARDOWN) == nil then
+		tmr.register(TIMER_TEARDOWN, CONFIG_WIFITIME, tmr.ALARM_SINGLE,
+			teardown)
+		tmr.start(TIMER_TEARDOWN)
 	end
-	gpio.trig(CONFIG_MOTION, "down", firemotion)
 end
 
--- Tear down the Wifi after the packets are sent
-function teardown()
-	teardowntimer:stop()
-	wifi.setmode(wifi.NULLMODE, false)
-	gpio.trig(CONFIG_MOTION, "down", firemotion)
+-- Callback for the motion sensor.
+function firemotion()
+	print("Detected motion...")
+	reset()
+	wifi.sta.eventMonReg(wifi.STA_GOTIP, sendmotion)
+	wifi.sta.eventMonStart()
+	tmr.register(TIMER_SETUP, CONFIG_SETUPTIME, tmr.ALARM_SINGLE,
+		startup)
+	tmr.start(TIMER_SETUP)
+	wifi.setmode(wifi.STATION, false)
+	wifi.sta.connect()
+	print("Waiting for IP...")
 end
 
--- Finally, install the gpio handlers and enter the main loop.
-gpio.trig(CONFIG_BTN, "down", fireconfig)
-gpio.trig(CONFIG_MOTION, "down", firemotion)
+-- Set up an edge trigger to respond to the pushbutton (for smartconfig).
+-- We set the GPIO trigger back up at the end for the next button press.
+function setconfig(ssid, password)
+	print("Got smartconfig " .. ssid .. ", " .. password .. "  Configuring...")
+	reset()
+	wifi.stopsmart()
+	config = {}
+	config.ssid = ssid
+	config.pwd = password
+	config.auto = false
+	config.save = true
+	wifi.sta.config(config)
+	wifi.sta.eventMonReg(wifi.STA_GOTIP, sendmotion)
+	wifi.sta.eventMonStart()
+	tmr.register(TIMER_SETUP, CONFIG_SETUPTIME, tmr.ALARM_SINGLE,
+		setuptimeout)
+	tmr.start(TIMER_SETUP)
+end
+
+-- Callback when setup has been running without success for too long.
+function setuptimeout()
+	print("Setup timed out.")
+	wifi.stopsmart()
+	startup()
+end
+
+-- Callback when we get a config pushbutton down.
+function fireconfig()
+	print("Got buttonpress...")
+	reset()
+	wifi.setmode(wifi.STATION)
+	tmr.register(TIMER_SETUP, CONFIG_SETUPTIME, tmr.ALARM_SINGLE,
+		setuptimeout)
+	tmr.start(TIMER_SETUP)
+	wifi.startsmart(0, setconfig)
+end
+
+-- Configured state.  Wait for either motion or button.
+function waitForMotion()
+	print("AP configured.  Waiting for motion or button...")
+	gpio.trig(CONFIG_BTN, "down", fireconfig)
+	gpio.trig(CONFIG_MOTION, "up", firemotion)
+end
+
+-- Unconfigured state.  Wait for button only.
+function waitForConfig()
+	print("No AP configuration yet.  Waiting for buttonpress...")
+	gpio.trig(CONFIG_BTN, "down", fireconfig)
+end
+
+-- Turn off all the timers and GPIO triggers.
+function reset()
+	-- Make sure any extant triggers are off
+	gpio.mode(CONFIG_BTN, gpio.INPUT)
+	gpio.mode(CONFIG_MOTION, gpio.INPUT)
+	gpio.trig(CONFIG_BTN)
+	gpio.trig(CONFIG_MOTION)
+	tmr.unregister(TIMER_SETUP)
+	tmr.unregister(TIMER_TEARDOWN)
+	wifi.sta.eventMonStop()
+end
+
+-- First state from boot time.  Figure out (based on whether the AP has ever
+-- been configured) which wait state to enter.
+function startup()
+	print("Startup")
+	-- Turn the radio off on boot.
+	wifi.nullmodesleep(false)
+	wifi.setmode(wifi.NULLMODE, true)
+	-- Turn off the triggers
+	reset()
+	-- Check to see if we have an AP config already and branch to either
+	-- the WAITING state or the UNCONFIGURED state
+	conf = wifi.sta.getconfig()
+	if conf == "" then
+		-- Nothing set yet
+		waitForConfig()
+	else
+		-- An AP has been set
+		waitForMotion()
+	end
+end
+
+-- Enter state 1 (startup)
+startup()
